@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
+    <title>当日无车原因及区域展示</title>
+    <link rel="stylesheet" type="text/css" href="/css/normalize.css" />
+    <link rel="stylesheet" href="/css/pages.css">
+    <script src="/lib/jquery.min.js"></script>
+    <script src="/lib/echarts.min.js"></script>
+    <script src="/lib/vintage.js"></script>
+    <!-- <script src="/js/pages.js"></script> -->
+    <style>
+        .page_title {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 120px;
+            padding: 40px 40px 0;
+            background-color: transparent;
+            background-image: none;
+        }
+
+        .page_title .title {
+            text-align: center;
+            font-size: 36px;
+            font-weight: normal;
+        }
+
+        .page_title .time_range {
+            text-align: center;
+            height: 44px;
+            line-height: 44px;
+            font-size: 20px;
+            color: #0f5397;
+        }
+
+        .page_main {
+            position: relative;
+            height: 100%;
+            padding-top: 120px;
+        }
+
+        /* .mapWrapper,
+            .dl_wrapper {
+                border: none !important;
+            } */
+
+        .column_title {
+            font-size: 26px !important;
+        }
+    </style>
+</head>
+
+<body style="background-image:url(/images/bg_pic.png);">
+    <div class="page_title">
+        <h3 class="title">当日无车原因及区域展示
+        </h3>
+        <p class="time_range">
+            <span class="start_time">2019-03-24 08:00:00</span>&nbsp;&nbsp;---&nbsp;&nbsp;<span
+                class="end_time">2019-04-24 08:00:00</span>
+        </p>
+    </div>
+    <!-- 内容区 -->
+    <div class="page_main noCar_main">
+        <!-- 左侧echarts地图 -->
+        <div class="mapContainer" id="map_event" style="width:55%">
+            <div class="mapWrapper">
+                <h4 class="chartTitle column_title">当日无车区域展示 <img src="images/e.t.bg.png" alt="" class="title_bg" /></h4>
+                <div class="mapChart" id="carMapChart">
+
+                </div>
+            </div>
+        </div>
+        <!-- 右侧数据统计 -->
+        <div class="data_statistics" style="width:45%">
+            <!-- <h3 class="chart_title">各分区突发事件数据统计</h3> -->
+            <div class="chartContainer">
+                <div class="chartWrapper">
+                    <h4 class="chartTitle column_title">当日无车原因展示 <img src="images/e.t.bg.png" alt="" class="title_bg" /></h4>
+                    <!-- 右侧数据统计饼图 -->
+                    <div class="noCarPieChart" id="noCarPieChart">
+
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        //浏览器窗口大小改变时重载页面
+        $(function () {
+            $(window).on("resize", function () {
+                location.reload();
+            });
+
+            window.external.webMapLoadComplete(); //window.external 是外部对象,与C#后台代码交互
+
+        });
+
+        /* ************************************************************************************************** */
+        /* js函数封装，供C#后台代码调用 */
+        var setIntervalTime = 5000;
+
+
+        /* *********************************************************** */
+        /* 设置时间范围 */
+        //标题栏时间范围---设置----后台调用
+        function setTimeRange(data) {
+            var data = JSON.parse(data);
+            $(".start_time").html(dateToTime2(data[0].startTime));
+            $(".end_time").html(dateToTime2(data[0].endTime));
+        }
+
+        //2019-03-05 plq function: 将Date对象获取的时间格式化为easyUI可解析的时间格式---带时分秒
+        function dateFormat2(time) {
+            var YY = time.getFullYear();
+            var MM = (time.getMonth() + 1) < 10 ? ("0" + (time.getMonth() + 1)) : (time.getMonth() + 1);
+            var DD = time.getDate() < 10 ? ("0" + time.getDate()) : time.getDate();
+            var hh = time.getHours() < 10 ? ("0" + time.getHours()) : time.getHours();
+            var mm = time.getMinutes() < 10 ? ("0" + time.getMinutes()) : time.getMinutes();
+            var ss = time.getSeconds() < 10 ? ("0" + time.getSeconds()) : time.getSeconds();
+            return YY + "-" + MM + "-" + DD + " " + hh + ":" + mm + ":" + ss;
+        }
+
+        //2019-03-05 plq function: 将后台返回的时间戳字符串（“/Date(1547082632000)/”）格式化为easyUI可解析的时间格式--带时分秒
+        function dateToTime2(data) {
+            var endIndex = data.indexOf(')');
+            var msec = parseInt(data.substring(6, endIndex));
+            //console.log(msec);
+            var time = new Date(msec);
+            return dateFormat2(time);
+        }
+
+        /* *********************************************************** */
+        /*  渲染左侧echarts地图 */
+        var data = [{
+            "name": "北部",
+            "value": 0,
+            "jindu": "116.4250",
+            "weidu": "40.0081"
+        }, {
+            "name": "南部",
+            "value": 0,
+            "jindu": "116.5031",
+            "weidu": "39.8599"
+        }, {
+            "name": "中北",
+            "value": 0,
+            "jindu": "116.5497",
+            "weidu": "39.9761"
+        }, {
+            "name": "中南",
+            "value": 0,
+            "jindu": "116.5293",
+            "weidu": "39.9155"
+        }]
+        renderLeftMapEchart(data);
+
+        //function：渲染左侧地图---后台调用
+        function renderLeftMapEchart(data) {
+            var data = dataFormat(data);
+            var dom = document.getElementById("carMapChart");
+            var myChart = echarts.init(dom);
+            var normalLableFont = 16;
+            var strongLableFont = 18;
+
+            $.get('/data/area.json', function (geoJson) {
+                echarts.registerMap('chaoyang', geoJson, {});
+                var option = {
+                    tooltip: {
+                        trigger: 'item',
+                        formatter: '{b}<br/>'
+                    },
+                    series: [{
+                        name: '朝阳120各分区突发事件统计',
+                        type: 'map',
+                        mapType: 'chaoyang',
+                        aspectScale: 1, //地图长宽比
+                        label: { //图形上的文本标签---对应json数据上的多边形分区name值
+                            normal: { //正常时的样式
+                                show: true,
+                                textStyle: {
+                                    // color: '#ef5400',
+                                    color: '#fff',
+                                    fontSize: normalLableFont,
+                                }
+                            },
+                            emphasis: { //高亮时的样式设置
+                                show: true,
+                                textStyle: {
+                                    color: 'red',
+                                    fontSize: strongLableFont,
+                                }
+                            }
+                        },
+                        emphasis: { //高亮状态下的样式---2019-03-22 plq 循环高亮效果添加
+                            itemStyle: { //多边形样式
+                                // areaColor: "#00c0ff",
+                                areaColor: "#36c5d8",
+                            }
+                        },
+                        data: [{
+                                name: '北部', //只有与json数据上的多边形分区name值对应才可以显示颜色
+                                value: 50, //value值对应颜色映射的取值
+                                itemStyle: {
+                                    // areaColor: '#abb4b1' //区域颜色
+                                    areaColor: '#0c254d' //区域颜色
+                                }
+                            },
+                            {
+                                name: '中北',
+                                value: 100,
+                                itemStyle: {
+                                    // areaColor: '#cdb4af '
+                                    areaColor: '#0c254d '
+                                }
+                            },
+                            {
+                                name: '中南',
+                                value: 180,
+                                itemStyle: {
+                                    // areaColor: '#b0b298'
+                                    areaColor: '#0c254d '
+                                }
+                            },
+                            {
+                                name: '南部',
+                                value: 220,
+                                itemStyle: {
+                                    // areaColor: '#bfa97f'
+                                    areaColor: '#0c254d '
+                                }
+                            },
+                        ],
+                        itemStyle: { //地图区域的多边形 图形样式。
+                            borderColor: '#fff', //图形的描边颜色
+                            borderWidth: 1,
+                            borderType: 'dashed',
+
+                        },
+                        markPoint: { //默认情况下，标记会居中置放在数据对应的位置，
+                            symbol: 'pin', //钉子形
+                            symbolSize: 60,
+                            itemStyle: {
+                                normal: {
+                                    color: '#4b96ff'
+                                }
+                            },
+                            label: { //标注的文本。
+                                normal: {
+                                    show: true,
+                                    formatter: function (
+                                        d) { //文本 回调函数格式：(params: Object|Array) => string
+                                        // return d.name + "\t无车" + d.value + "次"
+                                        return "无车\t" + d.value + "次"
+                                    },
+                                    textStyle: {
+                                        fontSize: 18,
+                                        fontFamily: '微软雅黑',
+                                        color: '#fff'
+                                    },
+                                    position: 'inside',
+                                }
+                            },
+                            data: data
+                        },
+                    }]
+                };
+                myChart.setOption(option);
+
+                //2019-03-22 plq 循环高亮
+                autoDispatchAction(myChart, option);
+
+            });
+        }
+
+        //function:对后台返回的数据格式化为echarts可解析的格式
+        function dataFormat(data) {
+            var arr = [];
+            // var data = JSON.parse(data);
+            for (var i = 0; i < data.length; i++) {
+                var obj = {};
+                obj.name = data[i].name;
+                obj.value = data[i].value;
+                obj.coord = [data[i]["jindu"], data[i]["weidu"]];
+                arr.push(obj);
+            }
+            console.log(arr);
+            return arr;
+        }
+
+
+        /* *********************************************************** */
+        /* 渲染右侧echarts饼图 */
+        var timeId;
+
+
+        //模拟数据
+        var data_2 = [{
+            "name": "电话中断",
+            "value": 973,
+            "jindu": null,
+            "weidu": null
+        }, {
+            "name": "附近无车",
+            "value": 70,
+            "jindu": null,
+            "weidu": null
+        }, {
+            "name": "控制出车",
+            "value": 3375,
+            "jindu": null,
+            "weidu": null
+        }, {
+            "name": "其他原因",
+            "value": 1923,
+            "jindu": null,
+            "weidu": null
+        }, {
+            "name": "全网无车",
+            "value": 0,
+            "jindu": null,
+            "weidu": null
+        }, {
+            "name": "无合适车",
+            "value": 136,
+            "jindu": null,
+            "weidu": null
+        }, {
+            "name": "医学指导",
+            "value": 1,
+            "jindu": null,
+            "weidu": null
+        }, {
+            "name": "用户要求",
+            "value": 91,
+            "jindu": null,
+            "weidu": null
+        }, {
+            "name": "预约派车",
+            "value": 12,
+            "jindu": null,
+            "weidu": null
+        }, {
+            "name": "转999处理",
+            "value": 340,
+            "jindu": null,
+            "weidu": null
+        }];
+        renderRightPieChart(data_2);
+
+        //function：渲染右侧饼图----后台调用
+        function renderRightPieChart(data) {
+            // var data = JSON.parse(data);
+            var colors = ['#dd6b66', '#759aa0', '#e69d87', '#8dc1a9', '#ea7e53', // 系列颜色
+                '#eedd78', '#73a373', '#73b9bc', '#91ca8c', '#f49f42'
+            ];
+            var titleFontSize = 24;
+            var labelFontSize = 18;
+            var dom = document.getElementById("noCarPieChart");
+            var noCarPieChart = echarts.init(dom, 'vintage'); //ECharts 实例
+
+            option = {
+                color: colors,
+                legend: {
+                    orient: 'horizontal',
+                    left: 'center',
+                    bottom: '5%',
+                    // width:'90%',
+                    // padding:200,
+                    data: getLegendData(data),
+                    itemGap: 20,
+                    formatter: function (name) {
+                        var total = 0;
+                        var target;
+                        for (var i = 0, l = data.length; i < l; i++) {
+                            total += data[i].value;
+                            if (data[i].name == name) {
+                                target = data[i].value;
+                            }
+                        }
+                        var arr = [
+                            '{a|' + ((target / total) * 100).toFixed(2) + '%}',
+                            '{b|' + name + '}',
+                        ]
+                        // return name + ' ' + ((target/total)*100).toFixed(2) + '%';
+                        return arr.join('\n')
+                    },
+                    textStyle: {
+                        fontSize: labelFontSize,
+                        color: '#fff',
+                        rich: {
+                            a: {
+                                fontSize: 20,
+                                verticalAlign: 'top',
+                                align: 'center',
+                                padding: [0, 0, 28, 0]
+                            },
+                            b: {
+                                fontSize: 16,
+                                align: 'center',
+                                padding: [0, 10, 0, 0],
+                                lineHeight: 25
+                            }
+                        }
+                    },
+                },
+                grid: {
+                    top: '25%',
+                },
+                tooltip: {
+                    trigger: 'item',
+                    formatter: "{a} <br/>{b} : {c} ({d}%)",
+                    // position: function (point, params, dom, rect, size) {
+                    //     // 固定在顶部
+                    //     return [point[0], '10%'];
+                    // }
+                },
+                backgroundColor: 'transparent',
+                series: [{
+                    name: '当日无车原因',
+                    type: 'pie',
+                    radius: '60%',
+                    center: ['50%', '40%'],
+                    data: data,
+                    itemStyle: {
+                        emphasis: {
+                            shadowBlur: 10,
+                            shadowOffsetX: 0,
+                            shadowColor: 'rgba(0, 0, 0, 0.5)'
+                        }
+                    },
+                    label: {
+                        color: '#fff',
+                        fontSize: labelFontSize,
+                    },
+                    labelLine: {
+                        // show:false,
+                        lineStyle: {
+                            // color:'#fff',
+                        }
+                    }
+                }]
+            };
+
+            noCarPieChart.setOption(option);
+            // 2019-03-12 plq 饼图扇区高亮自动切换
+            autoDispatchAction(noCarPieChart, option);
+        }
+
+        /* function: 解析data,根据data数据格式解析获取其中的图例数组 */
+        function getLegendData(data) {
+            var arr = [];
+            for (var i = 0; i < data.length; i++) {
+                arr.push(data[i].name);
+            }
+            return arr;
+        }
+        //function: 主动触发echarts实例高亮行为，实现扇区高亮自动切换。参数1：echarts实例；参数2：option配置对象
+        function autoDispatchAction(myChart, option) {
+            var app = {
+                currentIndex: -1 //初始数据索引值---通过其指定高亮的某个数据
+            };
+
+            timeId = setInterval(function () {
+                var dataLen = option.series[0].data.length;
+                // 取消之前高亮的图形
+                myChart.dispatchAction({
+                    type: 'downplay', //取消高亮指定的数据图形。
+                    seriesIndex: 0, // 可选，系列 index
+                    dataIndex: app.currentIndex // 可选，数据的 index
+                });
+                app.currentIndex = (app.currentIndex + 1) % dataLen;
+                // 高亮当前图形---通过seriesName或者seriesIndex指定系列。通过指定dataIndex或者name再指定某个数据。
+                myChart.dispatchAction({
+                    type: 'highlight',
+                    seriesIndex: 0,
+                    dataIndex: app.currentIndex
+                });
+                // 显示 tooltip
+                myChart.dispatchAction({
+                    type: 'showTip',
+                    seriesIndex: 0,
+                    dataIndex: app.currentIndex
+                });
+            }, setIntervalTime);
+        }
+    </script>
+
+</body>
+
+</html>

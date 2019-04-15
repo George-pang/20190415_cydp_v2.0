@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
+    <title>朝阳站点布局</title>
+    <link rel="stylesheet" type="text/css" href="/css/normalize.css" />
+    <link rel="stylesheet" href="/css/pages.css">
+    <script src="/lib/jquery.min.js"></script>
+    <script src="/lib/echarts.min.js"></script>
+    <!-- 引入百度地图api文件 -->
+    <!-- <script src="js/pages.js"></script> -->
+</head>
+
+<body>
+    <div class="page_title" style="background-color: #0075c7;">
+        <h3 class="title">朝阳120站点布局</h3>
+    </div>
+    <div class="page_main site_main">
+        <div class="mapContainer" id="mapContainer">
+
+        </div>
+    </div>
+    <!-- 如何在对应区域添加自定义覆盖物？？？ -->
+    <script>
+        var dom = document.getElementById("mapContainer");
+        var myChart = echarts.init(dom);
+        var app = {};
+        option = null;
+        myChart.showLoading();
+
+        $.get('/data/cyq.json', function (geoJson) {
+
+            myChart.hideLoading();
+
+            echarts.registerMap('CY', geoJson);
+
+            myChart.setOption(option = {
+                title: {
+                    text: '北京市地图',
+                },
+                tooltip: {
+                    trigger: 'item',
+                    formatter: '{b}<br/>{c} (p / km2)'
+                },
+                visualMap: { //视觉映射组件
+                    min: 800,
+                    max: 50000,
+                    text: ['High', 'Low'],
+                    realtime: false,
+                    calculable: true,
+                    inRange: {
+                        color: ['lightskyblue', 'yellow', 'orangered']
+                    }
+                },
+                series: [{
+                    name: '北京市地图',
+                    type: 'map',
+                    mapType: 'CY', // 自定义扩展图表类型
+                    itemStyle: {
+                        normal: {
+                            label: {
+                                show: true
+                            }
+                        },
+                        emphasis: {
+                            label: {
+                                show: true
+                            }
+                        }
+                    },
+                    data: [{ //地图系列中的数据项内容数组
+                            name: '房山区', //地图显示分区名
+                            value: 20057.34 //区域填充颜色值
+                        },
+                        {
+                            name: '门头沟区',
+                            value: 15477.48 //项数组中的第二个值指定给 visualMap 组件
+                        },
+                        {
+                            name: '大兴区',
+                            // value: 31686.1,
+                            //自定义特殊itemStyle，仅对该item有效
+                            itemStyle: {
+                                areaColor: '#00ff33'
+                            }
+                        },
+                        {
+                            name: '丰台区',
+                            value: 6992.6
+                        },
+                        {
+                            name: '石景山区',
+                            value: 44045.49
+                        },
+                        {
+                            name: '西城区',
+                            value: 40689.64
+                        },
+                        {
+                            name: '东城区',
+                            value: 37659.78
+                        },
+                        {
+                            name: '海淀区',
+                            value: 45180.97
+                        },
+                        {
+                            name: '朝阳区',
+                            value: 55204.26
+                        },
+                        {
+                            name: '昌平区',
+                            value: 21900.9
+                        },
+                        {
+                            name: '通州区',
+                            value: 4918.26
+                        },
+                        {
+                            name: '顺义区',
+                            value: 5881.84
+                        },
+                        {
+                            name: '平谷区',
+                            value: 4178.01
+                        },
+                        {
+                            name: '密云区',
+                            value: 2227.92
+                        },
+                        {
+                            name: '怀柔区',
+                            value: 2180.98
+                        },
+                        {
+                            name: '延庆区',
+                            value: 3368
+                        },
+
+                    ],
+                    // 自定义名称映射--英转中
+                    // nameMap: {
+                    //     'Central and Western': '中西区',
+                    //     'Eastern': '东区',
+                    //     'Islands': '离岛',
+                    //     'Kowloon City': '九龙城',
+                    //     'Kwai Tsing': '葵青',
+                    //     'Kwun Tong': '观塘',
+                    //     'North': '北区',
+                    //     'Sai Kung': '西贡',
+                    //     'Sha Tin': '沙田',
+                    //     'Sham Shui Po': '深水埗',
+                    //     'Southern': '南区',
+                    //     'Tai Po': '大埔',
+                    //     'Tsuen Wan': '荃湾',
+                    //     'Tuen Mun': '屯门',
+                    //     'Wan Chai': '湾仔',
+                    //     'Wong Tai Sin': '黄大仙',
+                    //     'Yau Tsim Mong': '油尖旺',
+                    //     'Yuen Long': '元朗'
+                    // },
+
+                    markPoint: { //默认情况下，标记会居中置放在数据对应的位置，
+                        symbol: 'pin', //钉子形
+                        symbolSize: 100,
+                        itemStyle: {
+                            normal: {
+                                color: '#4b96ff'
+                            }
+                        },
+                        label: { //标注的文本。
+                            normal: {
+                                show: true,
+                                formatter: function (d) { //文本 回调函数格式：(params: Object|Array) => string
+                                    return d.name //d:传入的数据值
+                                },
+                                textStyle: {
+                                    fontSize: 18,
+                                    fontFamily: '微软雅黑',
+                                    color: '#fff'
+                                },
+                                position: 'inside',
+                            }
+                        },
+                        data: [{
+                                name: "朝阳区",
+                                coord: [116.456937, 39.93331] //标注的坐标点
+                            },
+                            // {
+                            //     name: "通州区",
+                            //     coord: [116.552471, 39.761261],
+                            // }
+                        ],
+                    },
+                    // markLine:{ //画线
+                    // },
+                    markArea: {  //貌似只能画正方形？而且使用百度坐标怎么一直在左下角
+                        label: {
+                            show: true,
+                        },
+                        data: [
+                            [{
+                                    name: '朝阳区朝外大街',
+                                    coord: [116.445051,39.924537]
+                                },
+                                {
+                                    coord: [113.461205, 34.925747]
+                                }
+                            ],
+                        ],
+                        itemStyle: {
+                            color: 'blue',
+                        }
+
+                    },
+                }]
+            });
+        });;
+        if (option && typeof option === "object") {
+            myChart.setOption(option, true);
+        }
+    </script>
+</body>
+
+</html>

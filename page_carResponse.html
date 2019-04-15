@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
+    <title>车辆平均反应数据统计</title>
+    <link rel="stylesheet" type="text/css" href="/css/normalize.css" />
+    <link rel="stylesheet" href="/css/pages.css">
+    <script src="/lib/jquery.min.js"></script>
+    <script src="/lib/echarts.min.js"></script>
+    <!-- <script src="/js/pages.js"></script> -->
+    <style>
+        .page_title {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 120px;
+            padding: 40px 40px 0;
+            background-color: transparent !important;
+            background-image: none !important;
+        }
+
+        .page_title .title {
+            text-align: center;
+            font-size: 36px;
+            font-weight: normal;
+        }
+
+        .page_title .time_range {
+            text-align: center;
+            height: 44px;
+            line-height: 44px;
+            font-size: 20px;
+            color: #0f5397;
+        }
+
+        .page_main {
+            position: relative;
+            height: 100%;
+            padding-top: 120px;
+        }
+
+        /* .mapWrapper,
+            .dl_wrapper {
+                border: none !important;
+            } */
+
+        .column_title {
+            font-size: 26px !important;
+        }
+
+        .chartWrapper {
+            position: relative;
+        }
+
+        .chartWrapper .chartTitle {
+            position: absolute;
+            left: 10%;
+            top: 0;
+            font-size: 28px;
+            height: 40px;
+            line-height: 40px;
+            color: #00c0ff;
+        }
+
+        .tableWrapper .data_table th,
+        .tableWrapper .data_table td {
+            border-bottom: 1px solid #163f88;
+        }
+    </style>
+</head>
+
+<body style="background-image:url(/images/bg_pic.png);">
+    <div class="page_title">
+        <h3 class="title">朝阳120各中心车辆平均反应统计
+        </h3>
+        <p class="time_range">
+            <span class="start_time">2019-03-24 08:00:00</span>&nbsp;&nbsp;---&nbsp;&nbsp;<span
+                class="end_time">2019-04-24 08:00:00</span>
+        </p>
+    </div>
+    <!-- 内容区 -->
+    <div class="page_main response_main">
+        <!-- 左侧echarts柱状图 -->
+        <div class="chartContainer" style="width:52%;">
+            <div class="chartWrapper">
+                <h4 class="chartTitle column_title">各中心救护车平均反应图形统计 <img src="images/e.t.bg.png" alt=""
+                        class="title_bg" /></h4>
+                <div class="barChart" id="responseBarChart">
+
+                </div>
+            </div>
+        </div>
+        <!-- 右侧数据展示表格 -->
+        <div class="tableContainer" style="width:48%;">
+            <div class="tableWrapper">
+                <p class="chart_title column_title" style="background-image:url(images/panelTitle.png)">各中心车辆平均反应数据统计
+                </p>
+                <table class="data_table">
+                    <tr>
+                        <th>分中心</th>
+                        <th>朝阳</th>
+                        <th>垂杨柳</th>
+                        <th>东坝</th>
+                        <th>双桥</th>
+                        <th>亚运村</th>
+                    </tr>
+                    <tr>
+                        <td align="center">平均反应时间</td>
+                        <td>10秒</td>
+                        <td>10秒</td>
+                        <td>10秒</td>
+                        <td>10秒</td>
+                        <td>10秒</td>
+                    </tr>
+                    <tr>
+                        <td align="center">最短反应时间</td>
+                        <td>5秒</td>
+                        <td>5秒</td>
+                        <td>5秒</td>
+                        <td>5秒</td>
+                        <td>5秒</td>
+                    </tr>
+                    <tr>
+                        <td align="center">最长反应时间</td>
+                        <td>15秒</td>
+                        <td>15秒</td>
+                        <td>15秒</td>
+                        <td>15秒</td>
+                        <td>15秒</td>
+                    </tr>
+                    <tr>
+                        <td align="center">平均反应半径</td>
+                        <td>2公里</td>
+                        <td>2公里</td>
+                        <td>2公里</td>
+                        <td>2公里</td>
+                        <td>2公里</td>
+                    </tr>
+                    <tr>
+                        <td align="center">最短反应半径</td>
+                        <td>1公里</td>
+                        <td>1公里</td>
+                        <td>1公里</td>
+                        <td>1公里</td>
+                        <td>1公里</td>
+                    </tr>
+                    <tr>
+                        <td align="center">最长反应半径</td>
+                        <td>5公里</td>
+                        <td>5公里</td>
+                        <td>5公里</td>
+                        <td>5公里</td>
+                        <td>5公里</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        //浏览器窗口大小改变时重载页面
+        $(function () {
+            $(window).on("resize", function () {
+                location.reload();
+            });
+
+            window.external.webMapLoadComplete();
+        });
+
+        /* ************************************************************************************************** */
+        /* js函数封装，供C#后台代码调用 */
+        var setInterValTime = 5000;
+
+        /* *********************************************************** */
+        /* 设置时间范围 */
+        //标题栏时间范围---设置----后台调用
+        function setTimeRange(data) {
+            var data = JSON.parse(data);
+            $(".start_time").html(dateToTime2(data[0].startTime));
+            $(".end_time").html(dateToTime2(data[0].endTime));
+        }
+
+        //2019-03-05 plq function: 将Date对象获取的时间格式化为easyUI可解析的时间格式---带时分秒
+        function dateFormat2(time) {
+            var YY = time.getFullYear();
+            var MM = (time.getMonth() + 1) < 10 ? ("0" + (time.getMonth() + 1)) : (time.getMonth() + 1);
+            var DD = time.getDate() < 10 ? ("0" + time.getDate()) : time.getDate();
+            var hh = time.getHours() < 10 ? ("0" + time.getHours()) : time.getHours();
+            var mm = time.getMinutes() < 10 ? ("0" + time.getMinutes()) : time.getMinutes();
+            var ss = time.getSeconds() < 10 ? ("0" + time.getSeconds()) : time.getSeconds();
+            return YY + "-" + MM + "-" + DD + " " + hh + ":" + mm + ":" + ss;
+        }
+
+        //2019-03-05 plq function: 将后台返回的时间戳字符串（“/Date(1547082632000)/”）格式化为easyUI可解析的时间格式--带时分秒
+        function dateToTime2(data) {
+            var endIndex = data.indexOf(')');
+            var msec = parseInt(data.substring(6, endIndex));
+            //console.log(msec);
+            var time = new Date(msec);
+            return dateFormat2(time);
+        }
+
+        /* ****************************************************** */
+        /* 渲染左侧柱状图 */
+        //本地模拟数据
+        var data_info = [{
+                name: "朝阳",
+                avgTime: 150,
+                avgRadius: 12
+            },
+            {
+                name: "垂杨柳",
+                avgTime: 220,
+                avgRadius: 14
+            },
+            {
+                name: "东坝",
+                avgTime: 330,
+                avgRadius: 18
+            },
+            {
+                name: "双桥",
+                avgTime: 80,
+                avgRadius: 10
+            },
+            {
+                name: "亚运村",
+                avgTime: 360,
+                avgRadius: 8
+            },
+        ]
+        renderLeftBarChart(data_info);
+
+        //function:渲染左侧柱状图。参数：data----后台调用
+        function renderLeftBarChart(data) {
+            // var data = JSON.parse(data);
+            var dom = document.getElementById("responseBarChart");
+            var carChart = echarts.init(dom);
+            var seriesColors = ['#5793f3', '#d14a61']; //系列色
+            // var barColors = ["#c23531", "#61a0a8", "#FFDE76", "#E43C59", "#37A2DA"]; //柱状图图柱色
+            var barColors = ['#249cf9', '#fecb1c', '#71e1e4', '#eb704a', '#ff4261']; // 全局变量、页面右侧元素的系列颜色
+            var axisLabelFontSize = 22;
+            var option = {
+                // title: {
+                //     text: "朝阳120各中心救护车平均反应时间、半径统计",
+                //     textStyle: {
+                //         // color: '#fff',
+                //         color: '#00c0ff',
+                //         fontSize: 28,
+                //     },
+                //     left: 'center',
+                //     bottom: 50,
+                // },
+                color: seriesColors,
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { //坐标轴指示器配置项
+                        type: 'cross', //十字准星指示器
+                        label: { //坐标轴指示器的文本标签。
+                            fontSize: 18,
+                            padding: [5, 10],
+                            backgroundColor: '#d14a61'
+                        }
+                    }
+                },
+                grid: { //直角坐标系 grid
+                    // top: 100,
+                    top: '25%',
+                    bottom: '20%',
+                    left: '20%',
+                    right: '25%'
+                },
+                // legend: {
+                //     data: ['平均反应时间', '平均反应半径']
+                // },
+                xAxis: [{
+                    type: 'category',
+                    axisTick: {
+                        alignWithLabel: true
+                    },
+                    data: getData(data, "name"),
+                    axisLine: { //轴线
+                        lineStyle: {
+                            color: '#fff',
+                        }
+                    },
+                    axisTick: { //刻度线
+                        show: false,
+                        alignWithLabel: true
+                    },
+                    axisLabel: { //刻度标签
+                        interval: 0, //标签的显示间隔(类目轴中有效),设置成 0 强制显示所有标签
+                        margin: 20, //标签与轴线的距离
+                        fontSize: axisLabelFontSize,
+                        rotate: 30,
+                    }
+                }],
+                yAxis: [{
+                        type: 'value',
+                        name: '平均反应时间',
+                        nameTextStyle: {
+                            // color: 'rgba(255,255,255,.6)',
+                            color: seriesColors[0],
+                            fontSize: axisLabelFontSize,
+                        },
+                        nameGap: 30, //坐标轴名称与轴线之间的距离
+                        min: 0,
+                        // max: 400,
+                        position: 'left',
+                        axisLine: {
+                            lineStyle: {
+                                color: seriesColors[0]
+                                // color: '#fff'
+
+                            }
+                        },
+                        axisLabel: {
+                            formatter: '{value} 秒',
+                            margin: 15, //标签与轴线的距离
+                            fontSize: axisLabelFontSize,
+                        },
+                        axisTick: { //刻度线
+                            length: 10,
+                            alignWithLabel: true
+                        },
+                        splitLine: {
+                            show: false
+                        }
+
+                    },
+                    {
+                        type: 'value',
+                        name: '平均反应半径',
+                        nameTextStyle: {
+                            // color: 'rgba(255,255,255,.6)',
+                            color: seriesColors[1],
+                            fontSize: axisLabelFontSize,
+                        },
+                        nameGap: 30,
+                        min: 0,
+                        // max: 20,
+                        position: 'right',
+                        offset: 80,
+                        axisLine: { //轴线
+                            lineStyle: {
+                                color: seriesColors[1]
+                                // color: '#fff'
+                            }
+                        },
+                        axisLabel: { //刻度标签文本
+                            formatter: '{value} km',
+                            margin: 15, //标签与轴线的距离
+                            fontSize: axisLabelFontSize,
+                        },
+                        axisTick: { //刻度线
+                            length: 10,
+                            alignWithLabel: true
+                        },
+                        splitLine: { //分割线
+                            show: false
+                        }
+                    },
+                ],
+                series: [{
+                        name: '平均反应时间',
+                        type: 'bar',
+                        data: getData(data, "avgTime"),
+                        barWidth: '50%', //柱条的宽度，不设时自适应。支持设置成相对于类目宽度的百分比。
+                        /* 每根柱子不同颜色设置 */
+                        itemStyle: {
+                            normal: {
+                                //params:Object;传入的是数据项 seriesIndex, dataIndex, data, value 等各个参数。
+                                color: function (params) {
+                                    let colorList = barColors;
+                                    return colorList[params.dataIndex];
+                                }
+                            }
+                        },
+                    },
+                    {
+                        name: '平均反应半径',
+                        type: 'line',
+                        yAxisIndex: 1,
+                        data: getData(data, "avgRadius"),
+                        itemStyle: {
+                            normal: {
+                                color: seriesColors[1]
+                            }
+                        }
+                    }
+                ]
+            };
+            carChart.setOption(option);
+            autoDispatchAction(carChart, option);
+        }
+
+        //function: 解析格式类似对象数组的数据，获取其中对象某个key名对应的数据数组
+        function getData(data, key) {
+            var arr = [];
+            for (var i = 0; i < data.length; i++) {
+                arr.push(data[i][key]);
+            }
+            return arr;
+        }
+
+        //2019-03-22 plq 循环高亮
+        //function: 主动触发echarts实例高亮行为，实现高亮自动切换。参数1：echarts实例；参数2：option配置对象
+        function autoDispatchAction(myChart, option) {
+            var app = {
+                currentIndex: -1 //初始数据索引值---通过其指定高亮的某个数据
+            };
+
+            timeId = setInterval(function () {
+                var dataLen = option.series[0].data.length;
+                // 取消之前高亮的图形
+                myChart.dispatchAction({
+                    type: 'downplay', //取消高亮指定的数据图形。
+                    seriesIndex: 0, // 可选，系列 index
+                    dataIndex: app.currentIndex // 可选，数据的 index
+                });
+                app.currentIndex = (app.currentIndex + 1) % dataLen;
+                // 高亮当前图形---通过seriesName或者seriesIndex指定系列。通过指定dataIndex或者name再指定某个数据。
+                myChart.dispatchAction({
+                    type: 'highlight',
+                    seriesIndex: 0,
+                    dataIndex: app.currentIndex
+                });
+                // 显示 tooltip
+                myChart.dispatchAction({
+                    type: 'showTip',
+                    seriesIndex: 0,
+                    dataIndex: app.currentIndex
+                });
+            }, setInterValTime);
+        }
+
+        /* ************************************************************* */
+        /* function：渲染右侧table---后台调用 */
+        function renderRightTable(data) {
+            var data = JSON.parse(data);
+            for (var i = 0; i < data.length; i++) {
+                $(".data_table").find("tr").eq(0).find("th").eq(i + 1).html(data[i].name);
+                $(".data_table").find("tr").eq(1).find("td").eq(i + 1).html(data[i].avgTime == "" ? "无" : formatSeconds(
+                    data[i].avgTime));
+                $(".data_table").find("tr").eq(2).find("td").eq(i + 1).html(data[i].minTime == "" ? "无" : formatSeconds(
+                    data[i].minTime));
+                $(".data_table").find("tr").eq(3).find("td").eq(i + 1).html(data[i].maxTime == "" ? "无" : formatSeconds(
+                    data[i].maxTime));
+                $(".data_table").find("tr").eq(4).find("td").eq(i + 1).html(data[i].avgRadius == "" ? "无" : data[i]
+                    .avgRadius + "公里");
+                $(".data_table").find("tr").eq(5).find("td").eq(i + 1).html(data[i].minRadius == "" ? "无" : data[i]
+                    .minRadius + "公里");
+                $(".data_table").find("tr").eq(6).find("td").eq(i + 1).html(data[i].maxRadius == "" ? "无" : data[i]
+                    .maxRadius + "公里");
+            }
+        }
+
+        //function:秒数转化为时分秒
+        function formatSeconds(value) {
+            var secondTime = parseInt(value); // 秒
+            var minuteTime = 0; // 分
+            var hourTime = 0; // 小时
+            if (secondTime > 60) { //如果秒数大于60，将秒数转换成整数
+                //获取分钟，除以60取整数，得到整数分钟
+                minuteTime = parseInt(secondTime / 60);
+                //获取秒数，秒数取佘，得到整数秒数
+                secondTime = parseInt(secondTime % 60);
+                //如果分钟大于60，将分钟转换成小时
+                if (minuteTime > 60) {
+                    //获取小时，获取分钟除以60，得到整数小时
+                    hourTime = parseInt(minuteTime / 60);
+                    //获取小时后取佘的分，获取分钟除以60取佘的分
+                    minuteTime = parseInt(minuteTime % 60);
+                }
+            }
+            var result = "" + parseInt(secondTime) + "秒";
+
+            if (minuteTime > 0) {
+                result = "" + parseInt(minuteTime) + "分" + result;
+            }
+            if (hourTime > 0) {
+                result = "" + parseInt(hourTime) + "小时" + result;
+            }
+            return result;
+        }
+    </script>
+</body>
+
+</html>

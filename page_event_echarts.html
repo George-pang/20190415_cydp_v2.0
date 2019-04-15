@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
+    <title>朝阳120突发事件统计</title>
+    <link rel="stylesheet" type="text/css" href="/css/normalize.css" />
+    <link rel="stylesheet" href="/css/pages.css">
+    <script src="/lib/jquery.min.js"></script>
+    <script src="/lib/echarts.min.js"></script>
+    <script src="/lib/vintage.js"></script>
+    <!-- <script src="/js/pages.js"></script> -->
+    <style>
+        .page_title {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 120px;
+            padding: 40px 40px 0;
+            background-color: transparent;
+            background-image: none;
+        }
+
+        .page_title .title {
+            text-align: center;
+            font-size: 36px;
+            font-weight: normal;
+        }
+
+        .page_title .time_range {
+            text-align: center;
+            height: 44px;
+            line-height: 44px;
+            font-size: 20px;
+            color: #0f5397;
+        }
+
+        .page_main {
+            position: relative;
+            height: 100%;
+            padding-top: 120px;
+        }
+
+        /* .mapWrapper,
+        .dl_wrapper {
+            border: none !important;
+        } */
+
+        .column_title {
+            font-size: 26px !important;
+        }
+
+        .event_main .data_statistics .data_list_container .data_list .data_item {
+            color: #8bc0ce !important;
+        }
+
+        .event_main .data_statistics .data_list_container .data_list .data_item::after {
+            background-color: transparent !important;
+        }
+    </style>
+</head>
+
+<body style="background-image:url(/images/bg_pic.png);">
+    <div class="page_title">
+        <h3 class="title">朝阳120突发事件统计
+        </h3>
+        <p class="time_range">
+            <span class="start_time">2019-03-24 08:00:00</span>&nbsp;&nbsp;---&nbsp;&nbsp;<span
+                class="end_time">2019-04-24 08:00:00</span>
+        </p>
+    </div>
+    <div class="page_main event_main">
+        <!-- 左侧echarts地图 -->
+        <div class="mapContainer" id="map_event" style="width:55%">
+            <div class="mapWrapper">
+                <h4 class="chartTitle column_title">朝阳120各片区突发事件统计 <img src="images/e.t.bg.png" alt=""
+                        class="title_bg" /></h4>
+                <div class="mapChart" id="mapChart">
+
+                </div>
+            </div>
+        </div>
+        <!-- 右侧数据统计 -->
+        <div class="data_statistics" style="width:45%">
+            <div class="data_list_container">
+                <div class="dl_wrapper">
+                    <p class="chart_title column_title" style="background-image:url(images/panelTitle.png)">各类型突发事件数据统计
+                    </p>
+                    <ul class="data_list">
+                        <li class="data_item">
+                            <div class="event_info">
+                                <i class="event_level"></i>
+                                <span class="event_name">火灾事件<i class="unit">（起）</i></span>
+                            </div>
+                            <div class="event_num">10</div>
+                        </li>
+                        <li class="data_item">
+                            <div class="event_info">
+                                <i class="event_level"></i>
+                                <span class="event_name">CO中毒事件<i class="unit">（起）</i></span>
+                            </div>
+                            <div class="event_num">10</div>
+                        </li>
+                        <li class="data_item">
+                            <div class="event_info">
+                                <i class="event_level"></i>
+                                <span class="event_name">溺水事件<i class="unit">（起）</i></span>
+                            </div>
+                            <div class="event_num">10</div>
+                        </li>
+                        <li class="data_item">
+                            <div class="event_info">
+                                <i class="event_level"></i>
+                                <span class="event_name">公共安全事件<i class="unit">（起）</i></span>
+                            </div>
+                            <div class="event_num">10</div>
+                        </li>
+                        <li class="data_item">
+                            <div class="event_info">
+                                <i class="event_level"></i>
+                                <span class="event_name">特殊事件<i class="unit">（起）</i></span>
+                            </div>
+                            <div class="event_num">10</div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            <!-- 右侧数据统计柱状图 -->
+            <div class="barChartContainer">
+                <div class="dl_wrapper">
+                    <p class="chart_title column_title" style="background-image:url(images/panelTitle.png)">
+                        各分区突发事件区域数据统计</p>
+                    <div class="barChart" id="eventBarChart">
+
+                    </div>
+                </div>
+            </div>
+
+
+
+        </div>
+    </div>
+    <script>
+        /* 浏览器窗口大小改变时重载页面 */
+        $(function () {
+            $(window).on("resize", function () {
+                location.reload();
+            });
+
+            window.external.webMapLoadComplete();
+        });
+
+        /* ************************************************************************************************** */
+        /* js函数封装，供C#后台代码调用 */
+        var setIntervalTime = 5000;
+
+
+        /* *********************************************************** */
+        /* 设置时间范围 */
+        //标题栏时间范围---设置----后台调用
+        function setTimeRange(data) {
+            var data = JSON.parse(data);
+            $(".start_time").html(dateToTime2(data[0].startTime));
+            $(".end_time").html(dateToTime2(data[0].endTime));
+        }
+
+        //2019-03-05 plq function: 将Date对象获取的时间格式化为easyUI可解析的时间格式---带时分秒
+        function dateFormat2(time) {
+            var YY = time.getFullYear();
+            var MM = (time.getMonth() + 1) < 10 ? ("0" + (time.getMonth() + 1)) : (time.getMonth() + 1);
+            var DD = time.getDate() < 10 ? ("0" + time.getDate()) : time.getDate();
+            var hh = time.getHours() < 10 ? ("0" + time.getHours()) : time.getHours();
+            var mm = time.getMinutes() < 10 ? ("0" + time.getMinutes()) : time.getMinutes();
+            var ss = time.getSeconds() < 10 ? ("0" + time.getSeconds()) : time.getSeconds();
+            return YY + "-" + MM + "-" + DD + " " + hh + ":" + mm + ":" + ss;
+        }
+
+        //2019-03-05 plq function: 将后台返回的时间戳字符串（“/Date(1547082632000)/”）格式化为easyUI可解析的时间格式--带时分秒
+        function dateToTime2(data) {
+            var endIndex = data.indexOf(')');
+            var msec = parseInt(data.substring(6, endIndex));
+            //console.log(msec);
+            var time = new Date(msec);
+            return dateFormat2(time);
+        }
+
+        /* *********************************************************** */
+        /* 渲染左侧echarts地图 */
+        //地图上2个/片区、固定10个标记点的经纬度坐标数组
+        var coords = {
+            "北部": [
+                [116.3864, 40.0018],
+                [116.4407, 40.0171]
+            ],
+            "中北": [
+                [116.5169, 39.9819],
+                [116.5821, 39.9750]
+            ],
+            "中南": [
+                [116.5100, 39.9250],
+                [116.5855, 39.9060]
+            ],
+            "南部": [
+                [116.5011, 39.8333],
+                [116.5402, 39.8660]
+            ],
+            "外区": [
+                [116.5965, 40.0565],
+                [116.5903, 40.0807]
+            ],
+
+        };
+        var ponitSymbolColors = ['red', 'yellow']; //地图上标记点标记图形的颜色数组
+
+        //本地模拟数据
+        var data = [{
+            "name": "北部",
+            "info": [{
+                "name": "其他类",
+                "value": "407"
+            }, {
+                "name": "交通事故",
+                "value": "169"
+            }]
+        }, {
+            "name": "南部",
+            "info": [{
+                "name": "交通事故",
+                "value": "230"
+            }, {
+                "name": "其他类",
+                "value": "608"
+            }]
+        }, {
+            "name": "中北",
+            "info": [{
+                "name": "其他类",
+                "value": "674"
+            }, {
+                "name": "交通事故",
+                "value": "223"
+            }]
+        }, {
+            "name": "中南",
+            "info": [{
+                "name": "交通事故",
+                "value": "141"
+            }, {
+                "name": "其他类",
+                "value": "604"
+            }]
+        }]
+
+        renderLeftMapChart(data);
+        //function：渲染左侧地图数据---后台调用
+        function renderLeftMapChart(data) {
+            // var data = JSON.parse(data);
+
+            var dom = document.getElementById("mapChart");
+            var myChart = echarts.init(dom);
+            var normalLableFont = 16;
+            var strongLableFont = 18;
+
+            $.get('/data/area.json', function (geoJson) {
+                echarts.registerMap('chaoyang', geoJson, {});
+                var option = {
+                    tooltip: {
+                        trigger: 'item',
+                        // formatter: '{b}<br/>'
+                        formatter: function (params, ticket, callback) {   //2019-04-15 回调函数方式动态返回提示框内容
+                            var areaName = params.name;
+                            // console.log(areaName);
+                            var content = "";
+                            for (var i = 0; i < data.length; i++) {
+                                if (data[i]["name"] == areaName) {
+                                    for (var j = 0; j < data[i]["info"].length; j++) {
+                                        content += data[i]["info"][j]["name"] + "：" + data[i]["info"][j]
+                                            ["value"] + "<br/>";
+                                    }
+                                    return content;
+                                }
+                            }
+                            return areaName;
+                        }
+                    },
+                    series: [{
+                        name: '朝阳120各分区突发事件统计',
+                        type: 'map',
+                        // top:100,
+                        map: 'chaoyang',
+                        aspectScale: 1, //地图长度比,默认0.75
+                        label: { //图形上的文本标签---对应json数据上的多边形分区name值
+                            normal: { //正常时的样式
+                                show: false,
+                                textStyle: {
+                                    // color: '#ef5400',
+                                    color: '#333',
+                                    fontSize: normalLableFont,
+                                }
+                            },
+                            emphasis: { //高亮时的样式设置
+                                show: true,
+                                textStyle: {
+                                    color: 'red',
+                                    fontSize: strongLableFont,
+                                }
+                            }
+                        },
+                        emphasis: { //高亮状态下的样式---2019-03-22 plq 循环高亮效果添加
+                            itemStyle: { //多边形样式
+                                areaColor: "#36c5d8",
+                            }
+                        },
+                        data: [{
+                                name: '北部', //只有与json数据上的多边形分区name值对应才可以显示颜色
+                                value: 50, //value值对应颜色映射的取值
+                                itemStyle: {
+                                    areaColor: '#0c254d' //区域颜色
+                                }
+                            },
+                            {
+                                name: '中北',
+                                value: 100,
+                                itemStyle: {
+                                    areaColor: '#0c254d '
+                                }
+                            },
+                            {
+                                name: '中南',
+                                value: 180,
+                                itemStyle: {
+                                    areaColor: '#0c254d'
+                                }
+                            },
+                            {
+                                name: '南部',
+                                value: 220,
+                                itemStyle: {
+                                    areaColor: '#0c254d'
+                                }
+                            },
+                        ],
+                        itemStyle: { //地图区域的多边形 图形样式。
+                            borderColor: '#fff', //图形的描边颜色
+                            borderWidth: 1,
+                            borderType: 'dashed',
+                        },
+                        markPoint: { //默认情况下，标记会居中置放在数据对应的位置，
+                            symbol: 'path://m 0,0 h 48 v 20 h -30 l -6,10 l -6,-10 h -6 z',
+                            symbolSize: 20,
+                            // symbolSize:(rawValue, params) => {   //回调函数实现每个数据图形大小不一样
+                            //     params.symbolSize = rawValue*5;
+                            //     return params.symbolSize
+                            // },
+                            itemStyle: { //全局标注样式
+                                // normal: {
+                                //     // color:'#70b218' //貌似标记的颜色只能统一设置一个。。。回调无效？？
+                                // },
+                                emphasis: {
+                                    color: '#f16d02',
+                                    borderColor: '#fff',
+                                    borderWidth: 1
+                                }
+                            },
+                            label: { //标注的文本。
+                                normal: {
+                                    show: true,
+                                    position: 'top',
+                                    distance: 0,
+                                    offset: [0, 2],
+                                    // formatter: function (d) { //文本 回调函数格式：(params: Object|Array) => string
+                                    //     return d.name + "\n" + d.value + "起"
+                                    // },
+                                    formatter: '{styleA|{b}\t}{styleB|{c}}',
+                                    textStyle: {
+                                        fontFamily: '微软雅黑',
+                                        align: 'center',
+                                        color: '#fff',
+                                        // backgroundColor:"31b573",
+                                        padding: 4,
+                                    },
+                                    rich: {
+                                        styleA: {
+                                            fontSize: normalLableFont,
+                                            // color: "#4b96ff",
+                                            color: '#fff'
+                                        },
+                                        styleB: {
+                                            fontSize: strongLableFont,
+                                            color: "#fff",
+                                            lineHeight: 30,
+                                        },
+                                    }
+                                }
+                            },
+                            animation: true, //开启动画
+                            data: getMarkPointData(data),
+                        },
+                    }]
+                };
+                myChart.setOption(option);
+
+                //2019-03-22 plq 区域循环高亮
+                autoDispatchMapAction(myChart, option);
+
+            });
+        };
+
+        //function:解析后台传递的数据，结合经纬度坐标数据及标记图形颜色数组解析成echarts可用数据
+        function getMarkPointData(data) {
+            var arr = [];
+            for (var i = 0; i < data.length; i++) {
+                for (var j = 0; j < data[i]["info"].length; j++) {
+                    var obj = {};
+                    obj.name = data[i]["info"][j]["name"];
+                    obj.value = data[i]["info"][j]["value"];
+                    obj.coord = coords[data[i]["name"]][j];
+                    obj.itemStyle = {};
+                    obj.itemStyle.color = ponitSymbolColors[j];
+                    arr.push(obj);
+                }
+            }
+            console.log(arr);
+            return arr;
+        }
+
+        //2019-04-13 plq 循环选中地图区域
+        //function: 主动触发echarts实例高亮行为，实现高亮自动切换。参数1：echarts实例；参数2：option配置对象
+        function autoDispatchMapAction(myChart, option) {
+            var app = {
+                currentIndex: -1 //初始数据索引值---通过其指定高亮的某个数据
+            };
+
+            timeId = setInterval(function () {
+                var dataLen = option.series[0].data.length;
+                // 取消之前高亮的图形
+                myChart.dispatchAction({
+                    type: 'mapUnSelect', //取消高亮指定的数据图形。
+                    seriesIndex: 0, // 可选，系列 index，在 tooltip 的 trigger 为 axis 的时候可选。
+                    dataIndex: app.currentIndex // 可选，数据的 index
+                });
+                app.currentIndex = (app.currentIndex + 1) % dataLen;
+                // 高亮当前图形---通过seriesName或者seriesIndex指定系列。通过指定dataIndex或者name再指定某个数据。
+                myChart.dispatchAction({
+                    type: 'mapSelect',
+                    seriesIndex: 0,
+                    dataIndex: app.currentIndex
+                });
+                // 显示 tooltip
+                myChart.dispatchAction({
+                    type: 'showTip',
+                    seriesIndex: 0, //这行不能省
+                    dataIndex: app.currentIndex
+                    // name:"北部"
+                });
+
+            }, setIntervalTime);
+        }
+
+
+        /* ********************************************************************** */
+        var colors = ['#249cf9', '#fecb1c', '#71e1e4', '#eb704a', '#ff4261']; // 全局变量、页面右侧元素的系列颜色
+
+
+        //模拟数据，本地测试用
+        var data_info = [{
+            "name": "其他类",
+            "totalNum": "251"
+        }, {
+            "name": "交通事故",
+            "totalNum": "93"
+        }, {
+            "name": "事故类",
+            "totalNum": "80"
+        }, {
+            "name": "事件类",
+            "totalNum": "26"
+        }, {
+            "name": "一氧化碳中毒",
+            "totalNum": "3"
+        }]
+        renderRightTable(data_info);
+
+        //function：渲染右侧表格----后台调用 
+        function renderRightTable(data) {
+            // var data = JSON.parse(data);
+            for (var i = 0; i < data.length; i++) {
+                $(".data_list").find(".data_item").eq(i).find(".event_name").html(data[i].name +
+                    "<i class=\"unit\">（起）</i>");
+                $(".data_list").find(".data_item").eq(i).find(".event_num").html(data[i].totalNum);
+            }
+
+            //2019-03-22 plq 
+            autoTriggerHover(); //循环触发hover效果
+        }
+
+        renderLevelColor(colors);
+        // function：右侧各类型突发事件数据统计列表前icon背景色对应显示
+        function renderLevelColor(colors) {
+            for (var i = 0; i < $(".data_item").length; i++) {
+                $($(".data_item")[i]).find(".event_level").css("backgroundColor", colors[i]);
+            }
+        }
+
+        //2019-03-22 plq 循环触发列表的hover事件（显示hover效果）
+        function autoTriggerHover() {
+            var curIndex = 0;
+            setInterval(function () {
+                var length = $(".data_item").length;
+                $(".data_item").eq(curIndex).addClass("active").siblings().removeClass("active");
+                curIndex = (curIndex + 1) % length;
+                console.log(length, curIndex);
+            }, setIntervalTime);
+        }
+
+
+        /* ********************************************************************* */
+        /* 渲染右侧柱状图 */
+        // 模拟数据
+        var data = [{
+            "name": "北片",
+            "type": ["其他类", "交通事故", "事故类", "事件类", "一氧化碳中毒"],
+            "typeInfo": {
+                "shijianleiCount": "4",
+                "shiguleiCount": "35",
+                "jiaotongshiguleiCount": "24",
+                "qitaleiCount": "47",
+                "COCount": "2"
+            }
+        }, {
+            "name": "南片",
+            "type": ["其他类", "交通事故", "事故类", "事件类", "一氧化碳中毒"],
+            "typeInfo": {
+                "shijianleiCount": "5",
+                "shiguleiCount": "8",
+                "jiaotongshiguleiCount": "21",
+                "qitaleiCount": "43",
+                "COCount": null
+            }
+        }, {
+            "name": "外区",
+            "type": ["其他类", "交通事故", "事故类", "事件类", "一氧化碳中毒"],
+            "typeInfo": {
+                "shijianleiCount": null,
+                "shiguleiCount": null,
+                "jiaotongshiguleiCount": null,
+                "qitaleiCount": null,
+                "COCount": null
+            }
+        }, {
+            "name": "中北片",
+            "type": ["其他类", "交通事故", "事故类", "事件类", "一氧化碳中毒"],
+            "typeInfo": {
+                "shijianleiCount": "7",
+                "shiguleiCount": "20",
+                "jiaotongshiguleiCount": "28",
+                "qitaleiCount": "88",
+                "COCount": null
+            }
+        }, {
+            "name": "中南片",
+            "type": ["其他类", "交通事故", "事故类", "事件类", "一氧化碳中毒"],
+            "typeInfo": {
+                "shijianleiCount": "8",
+                "shiguleiCount": "17",
+                "jiaotongshiguleiCount": "20",
+                "qitaleiCount": "72",
+                "COCount": "1"
+            }
+        }];
+
+        renderRightBarChart(data);
+
+        //function:渲染右侧柱状图----后台调用
+        function renderRightBarChart(data) {
+            // var data = JSON.parse(data);
+            var dom = document.getElementById("eventBarChart");
+            var eventBarChart = echarts.init(dom, 'vintage');
+            option = {
+                color: colors,
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { // 坐标轴指示器，坐标轴触发有效
+                        type: 'shadow' // 默认为直线，可选为：'line' | 'shadow'
+                    }
+                },
+                legend: {
+                    left: '3%',
+                    top: 10,
+                    itemWidth: 15,
+                    itemHeight: 15,
+                    data: getLegendData(data),
+                    textStyle: {
+                        fontSize: 18,
+                        // color: 'rgba(0,0,0,.6)',
+                        color: '#01b8da',
+                        fontWeight: 'lighter',
+                    },
+                },
+                grid: {
+                    top: 100,
+                    left: '0',
+                    right: '4%',
+                    bottom: '5%',
+                    containLabel: true
+                },
+                xAxis: [{
+                    type: 'category',
+                    data: getxAxisData(data),
+                    axisLine: { //轴线
+                        lineStyle: {
+                            color: '#162b5f',
+                        }
+                    },
+                    axisTick: { //刻度线
+                        show: false,
+                        alignWithLabel: true
+                    },
+                    axisLabel: { //刻度标签
+                        margin: 20, //标签与轴线的距离
+                        fontSize: 24,
+                        color: '#004d99'
+                    }
+                }],
+                yAxis: [{
+                    type: 'value',
+                    name: '事件/起',
+                    nameTextStyle: {
+                        color: 'rgba(255,255,255,.6)',
+                        fontSize: 18,
+                    },
+                    axisLine: { //轴线
+                        show: false,
+                        lineStyle: {
+                            color: '#162b5f',
+                        }
+                    },
+                    axisTick: { //刻度线
+                        show: false,
+                        length: 10,
+                        alignWithLabel: true
+                    },
+                    axisLabel: { //刻度标签
+                        margin: 15, //标签与轴线的距离
+                        fontSize: 24,
+                        color: '#004d99'
+                    },
+                    splitLine: {
+                        lineStyle: {
+                            color: '#162b5f'
+                        }
+                    }
+                }],
+                backgroundColor: 'transparent',
+                series: [{
+                        name: getLegendData(data)[0],
+                        type: 'bar',
+                        // barWidth: '10%',
+                        data: getSeriesData(data, getLegendData(data)[0]),
+                        label: {
+                            show: true,
+                            position: 'top',
+                            color: '#fff',
+                            fontSize: 24,
+                        }
+                    },
+                    {
+                        name: getLegendData(data)[1],
+                        type: 'bar',
+                        // barWidth: '10%',
+                        data: getSeriesData(data, getLegendData(data)[1]),
+                        label: {
+                            show: true,
+                            position: 'top',
+                            color: '#fff',
+                            fontSize: 24,
+                        }
+                    },
+                    {
+                        name: getLegendData(data)[2],
+                        type: 'bar',
+                        // barWidth: '10%',
+                        data: getSeriesData(data, getLegendData(data)[2]),
+                        label: {
+                            show: true,
+                            position: 'top',
+                            color: '#fff',
+                            fontSize: 24,
+                        },
+                        barGap: 0, //柱间距离,为柱子快递的百分比
+                    },
+                    {
+                        name: getLegendData(data)[3],
+                        type: 'bar',
+                        // barWidth: '10%',
+                        data: getSeriesData(data, getLegendData(data)[3]),
+                        label: {
+                            show: true,
+                            position: 'top',
+                            color: '#fff',
+                            fontSize: 24,
+                        },
+                        barGap: 0, //柱间距离,为柱子快递的百分比
+                    },
+                    {
+                        name: getLegendData(data)[4],
+                        type: 'bar',
+                        // barWidth: '10%',
+                        data: getSeriesData(data, getLegendData(data)[4]),
+                        label: {
+                            show: true,
+                            position: 'top',
+                            color: '#fff',
+                            fontSize: 24,
+                        },
+                        barGap: 0, //柱间距离,为柱子快递的百分比
+                    },
+                ]
+            };
+            eventBarChart.setOption(option);
+
+            //2019-03-22 plq 循环高亮
+            autoDispatchAction(eventBarChart, option);
+
+        }
+
+        //function：解析数据data,提取到x坐标轴类目数据数组
+        function getxAxisData(data) {
+            var arr = [];
+            for (var i = 0; i < data.length; i++) {
+                arr.push(data[i]["name"]);
+
+            }
+            return arr;
+        }
+        //function：解析数据data,提取到图例数据数组
+        function getLegendData(data) {
+            var arr = [];
+            arr = data[0].type;
+            return arr;
+        }
+        //function：获取系列数组
+        function getSeriesData(data, seriesName) {
+            var typeName;
+            switch (seriesName) {
+                case "事件类":
+                    typeName = "shijianleiCount";
+                    break;
+                case "事故类":
+                    typeName = "shiguleiCount";
+                    break;
+                case "交通事故":
+                    typeName = "jiaotongshiguleiCount";
+                    break;
+                case "其他类":
+                    typeName = "qitaleiCount";
+                    break;
+                case "一氧化碳中毒":
+                    typeName = "COCount";
+                    break;
+            }
+            var arr = [];
+            for (var i = 0; i < data.length; i++) {
+                arr.push(data[i]["typeInfo"][typeName] ? data[i]["typeInfo"][typeName] : 0);
+
+            }
+            console.log(arr);
+            return arr;
+        }
+
+        //2019-03-22 plq 循环高亮
+        //function: 主动触发echarts实例高亮行为，实现高亮自动切换。参数1：echarts实例；参数2：option配置对象
+        function autoDispatchAction(myChart, option) {
+            var app = {
+                currentIndex: -1 //初始数据索引值---通过其指定高亮的某个数据
+            };
+
+            timeId = setInterval(function () {
+                var dataLen = option.series[0].data.length;
+                // 取消之前高亮的图形
+                myChart.dispatchAction({
+                    type: 'downplay', //取消高亮指定的数据图形。
+                    seriesIndex: 0, // 可选，系列 index
+                    dataIndex: app.currentIndex // 可选，数据的 index
+                });
+                app.currentIndex = (app.currentIndex + 1) % dataLen;
+                // 高亮当前图形---通过seriesName或者seriesIndex指定系列。通过指定dataIndex或者name再指定某个数据。
+                myChart.dispatchAction({
+                    type: 'highlight',
+                    seriesIndex: 0,
+                    dataIndex: app.currentIndex
+                });
+                // 显示 tooltip
+                myChart.dispatchAction({
+                    type: 'showTip',
+                    seriesIndex: 0,
+                    dataIndex: app.currentIndex
+                });
+            }, setIntervalTime);
+        }
+    </script>
+</body>
+
+</html>
