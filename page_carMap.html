@@ -12,17 +12,57 @@
     <script src="/lib/echarts.min.js"></script>
     <!-- 引入百度地图api文件 -->
     <script src="/js/pages.js"></script>
+    <style>
+        .page_title {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 120px;
+            padding: 40px 40px 0;
+            background-color: transparent !important;
+            background-image: none !important;
+        }
+
+        .page_title .title {
+            text-align: center;
+            font-size: 36px;
+            font-weight: normal;
+        }
+
+        .page_title .time_range {
+            text-align: center;
+            height: 44px;
+            line-height: 44px;
+            font-size: 20px;
+            color: #0f5397;
+        }
+
+        .page_main {
+            position: relative;
+            height: 100%;
+            padding-top: 120px;
+        }
+
+        /* .mapWrapper,
+        .dl_wrapper {
+            border: none !important;
+        } */
+
+        .column_title {
+            font-size: 26px !important;
+        }
+    </style>
 </head>
 
-<body style="background-image:url(/images/e.bg.jpg);">
-    <!-- 标题栏 -->
+<body style="background-image:url(/images/bg_pic.png);">
     <div class="page_title">
         <h3 class="title">车辆力量和路况
-            <p class="time_range">
-                <span class="subtitle">时间范围:</span>
-                <span class="start_time"></span>---<span class="end_time"></span>
-            </p>
         </h3>
+        <p class="time_range">
+            <span class="start_time">2019-03-24 08:00:00</span>&nbsp;&nbsp;---&nbsp;&nbsp;<span
+                class="end_time">2019-04-24 08:00:00</span>
+        </p>
     </div>
     <!-- 内容区 -->
     <div class="page_main">
